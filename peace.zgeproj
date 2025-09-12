@@ -62,14 +62,41 @@
     <DefineVariable Name="AudioDrive" Value="0.0"/>
     <DefineVariable Name="uTimeVar" Value="0.0"/>
 
-    <!-- Tree model built with ZGE components -->
+    <!-- Tree model rendered entirely through a shader on a quad -->
     <Model Name="TreeModel">
-      <Mesh Name="SeedMesh">
-        <MeshSphere Radius="0.2"/>
-      </Mesh>
-      <Mesh Name="TrunkMesh">
-        <MeshCylinder Height="1.0" Radius="0.05"/>
-      </Mesh>
+      <Definitions>
+        <Mesh Name="QuadMesh">
+          <MeshPlane Width="2" Height="2"/>
+        </Mesh>
+        <Shader Name="TreeShader">
+          <VertexShaderSource><![CDATA[
+attribute vec3 Position;
+void main(){
+  gl_Position = vec4(Position,1.0);
+}]]></VertexShaderSource>
+          <FragmentShaderSource><![CDATA[
+uniform float uTime;
+uniform float uHue;
+uniform float uSat;
+uniform float uLight;
+uniform float uAlpha;
+uniform float uGrowth;
+void main(){
+  gl_FragColor = vec4(uHue/360.0,uSat,uLight,uAlpha);
+}]]></FragmentShaderSource>
+          <ShaderVariable Name="uTime" Variable="uTimeVar"/>
+          <ShaderVariable Name="uHue" Variable="HueOffset"/>
+          <ShaderVariable Name="uSat" Variable="Saturation"/>
+          <ShaderVariable Name="uLight" Variable="Lightness"/>
+          <ShaderVariable Name="uAlpha" Variable="Alpha"/>
+          <ShaderVariable Name="uGrowth" Variable="Growth"/>
+        </Shader>
+        <Material Name="TreeMat" Shader="TreeShader"/>
+      </Definitions>
+      <OnRender>
+        <UseMaterial Material="TreeMat"/>
+        <RenderMesh Mesh="QuadMesh"/>
+      </OnRender>
     </Model>
 
     <!-- Main camera -->
@@ -137,13 +164,10 @@ AudioDrive = AudioDrive*(1.0-Smooth) + a*Smooth;
 Growth = Growth + (AnimSpeed + AudioDrive) * 0.016;
 if(Growth>1.0) Growth=1.0;
 
-TreeModel.Scale.Y = 0.2 + Growth*3.0;
-TreeModel.Position.Y = Growth*1.5;
-
 MainCamera.Position.X = sin(uTimeVar*RotSpeed) * Zoom * 5.0;
 MainCamera.Position.Z = cos(uTimeVar*RotSpeed) * Zoom * 5.0;
 MainCamera.Position.Y = Growth*2.0 + 2.0;
     ]]></ZExpression>
-    <RenderModels Camera="MainCamera"/>
+    <RenderWorld Camera="MainCamera"/>
   </OnRender>
 </ZApplication>
