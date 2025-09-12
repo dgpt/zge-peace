@@ -62,91 +62,22 @@
     <DefineVariable Name="AudioDrive" Value="0.0"/>
     <DefineVariable Name="uTimeVar" Value="0.0"/>
 
-    <!-- Shader-based tree -->
-    <Shader Name="TreeShader">
-      <VertexShaderSource><![CDATA[
-#version 120
-varying vec2 vUv;
-void main(){
-  vUv = gl_MultiTexCoord0.xy;
-  gl_Position = ftransform();
-}
-      ]]></VertexShaderSource>
-      <FragmentShaderSource><![CDATA[
-#version 120
-varying vec2 vUv;
-uniform float uTime;
-uniform float Growth;
-uniform float HueOffset;
-uniform float Saturation;
-uniform float Lightness;
-uniform float Alpha;
-uniform float RotSpeed;
-uniform float Zoom;
+    <!-- Tree model built with ZGE components -->
+    <Model Name="TreeModel">
+      <Mesh Name="SeedMesh">
+        <MeshSphere Radius="0.2"/>
+      </Mesh>
+      <Mesh Name="TrunkMesh">
+        <MeshCylinder Height="1.0" Radius="0.05"/>
+      </Mesh>
+    </Model>
 
-vec3 hsl2rgb(vec3 c){
-  vec3 rgb = clamp(abs(mod(c.x*6.0+vec3(0,4,2),6.0)-3.0)-1.0,0.0,1.0);
-  return c.z + c.y*(rgb-0.5)*(1.0-abs(2.0*c.z-1.0));
-}
-
-float sdCyl(vec3 p,float h,float r){
-  p.y-=clamp(p.y,0.0,h);
-  return length(vec2(length(p.xz),p.y))-r;
-}
-
-float sdSphere(vec3 p,float r){
-  return length(p)-r;
-}
-
-float map(vec3 p){
-  float g = Growth;
-  float seed = sdSphere(p-vec3(0.0,0.0,0.0), mix(0.2,0.0,smoothstep(0.0,0.3,g)));
-  float h = mix(0.0,2.0,smoothstep(0.3,1.0,g));
-  float trunk = sdCyl(p,h,0.1);
-  return min(seed,trunk);
-}
-vec3 shade(vec3 ro,vec3 rd){
-  float t=0.0;
-  for(int i=0;i<64;i++){
-    vec3 pos=ro+rd*t;
-    float d=map(pos);
-    if(d<0.001){
-      vec3 base = vec3(0.05,0.8,0.35);
-      return hsl2rgb(vec3(base.x + HueOffset/360.0, base.y * Saturation, base.z * Lightness));
-    }
-    t+=d;
-    if(t>20.0) break;
-  }
-  return vec3(0.0);
-}
-void main(){
-  vec2 uv = vUv*2.0-1.0;
-  vec3 target = vec3(0.0, Growth, 0.0);
-  float dist = Zoom * (1.5 + Growth*2.0);
-  vec3 ro = vec3(sin(uTime*RotSpeed)*dist, dist*0.5, cos(uTime*RotSpeed)*dist);
-  vec3 forward = normalize(target - ro);
-  vec3 right = normalize(cross(vec3(0.0,1.0,0.0), forward));
-  vec3 up = cross(forward, right);
-  vec3 rd = normalize(forward + uv.x * right + uv.y * up);
-    vec3 col = shade(ro, rd);
-    gl_FragColor = vec4(col, Alpha);
-}
-      ]]></FragmentShaderSource>
-      <ShaderVariable VariableName="uTime"     VariableRef="uTimeVar"/>
-      <ShaderVariable VariableName="Growth"    VariableRef="Growth"/>
-      <ShaderVariable VariableName="HueOffset" VariableRef="HueOffset"/>
-      <ShaderVariable VariableName="Saturation" VariableRef="Saturation"/>
-        <ShaderVariable VariableName="Lightness" VariableRef="Lightness"/>
-        <ShaderVariable VariableName="Alpha"     VariableRef="Alpha"/>
-        <ShaderVariable VariableName="RotSpeed"  VariableRef="RotSpeed"/>
-        <ShaderVariable VariableName="Zoom"      VariableRef="Zoom"/>
-    </Shader>
-    <Material Name="TreeMat" Shader="TreeShader"/>
-
+    <!-- Main camera -->
+    <Camera Name="MainCamera" Position="0 1 5"/>
   </Content>
 
   <OnLoaded>
-    <ZExpression><Expression><![CDATA[
+    <ZExpression><![CDATA[
   Parameters[0]=0.5;
   Parameters[1]=0.5;
   Parameters[2]=0.5;
@@ -156,11 +87,12 @@ void main(){
   Parameters[6]=0.5;
   Parameters[7]=0.5;
   Parameters[8]=0.5;
-]]></Expression></ZExpression>
+    ]]></ZExpression>
+    <SpawnModel Model="TreeModel"/>
   </OnLoaded>
 
   <OnRender>
-    <ZExpression><Expression><![CDATA[
+    <ZExpression><![CDATA[
   uTimeVar = uTimeVar + 0.016;
 
 float p;
@@ -205,10 +137,13 @@ AudioDrive = AudioDrive*(1.0-Smooth) + a*Smooth;
 Growth = Growth + (AnimSpeed + AudioDrive) * 0.016;
 if(Growth>1.0) Growth=1.0;
 
-  ]]></Expression></ZExpression>
-    <UseMaterial Material="TreeMat"/>
-    <RenderTransformGroup Scale="20 20 1">
-      <Children><RenderSprite/></Children>
-    </RenderTransformGroup>
+TreeModel.Scale.Y = 0.2 + Growth*3.0;
+TreeModel.Position.Y = Growth*1.5;
+
+MainCamera.Position.X = sin(uTimeVar*RotSpeed) * Zoom * 5.0;
+MainCamera.Position.Z = cos(uTimeVar*RotSpeed) * Zoom * 5.0;
+MainCamera.Position.Y = Growth*2.0 + 2.0;
+    ]]></ZExpression>
+    <RenderModels Camera="MainCamera"/>
   </OnRender>
-  </ZApplication>
+</ZApplication>
