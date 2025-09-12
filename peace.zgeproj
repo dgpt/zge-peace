@@ -42,12 +42,54 @@
     <DefineVariable Name="AudioDrive" Value="0.0"/>
     <DefineVariable Name="uTimeVar" Value="0.0"/>
 
-    <!-- Camera and tree placeholders -->
+    <!-- Camera and shader-based tree -->
     <Camera Name="Cam" Position="0 1 5" LookAt="0 1 0"/>
+    <Shader Name="TreeShader">
+      <VertexProgram><![CDATA[
+        attribute vec3 Position;
+        void main(){
+          gl_Position = vec4(Position,1.0);
+        }
+      ]]></VertexProgram>
+      <FragmentProgram><![CDATA[
+        uniform float uTimeVar;
+        uniform float Growth;
+        uniform float HueOffset;
+        uniform float RotSpeed;
+        vec3 hsv2rgb(vec3 c){
+          vec4 K=vec4(1.0,2.0/3.0,1.0/3.0,3.0);
+          vec3 p=abs(fract(c.xxx+K.xyz)*6.0-K.www);
+          return c.z*mix(K.xxx,clamp(p-K.xxx,0.0,1.0),c.y);
+        }
+        float sdCyl(vec3 p,float h,float r){
+          p.y-=clamp(p.y,0.0,h);
+          return length(vec2(length(p.xz),p.y))-r;
+        }
+        float map(vec3 p){
+          return sdCyl(p,Growth*2.0,0.05);
+        }
+        vec3 shade(vec3 ro,vec3 rd){
+          float t=0.0;
+          for(int i=0;i<64;i++){
+            vec3 pos=ro+rd*t;
+            float d=map(pos);
+            if(d<0.001) return hsv2rgb(vec3(HueOffset/360.0,0.7,0.8));
+            t+=d;
+            if(t>20.0) break;
+          }
+          return vec3(0.0);
+        }
+        void main(){
+          vec2 uv = (gl_FragCoord.xy/vec2(800.0,600.0))*2.0-1.0;
+          vec3 ro = vec3(sin(uTimeVar*RotSpeed)*5.0,1.0,cos(uTimeVar*RotSpeed)*5.0);
+          vec3 rd = normalize(vec3(uv,-1.5));
+          vec3 col = shade(ro,rd);
+          gl_FragColor = vec4(col,1.0);
+        }
+      ]]></FragmentProgram>
+    </Shader>
     <Model Name="Tree">
-        <MeshBuilder Name="Trunk">
-          <AddCylinder StartRadius="0.05" EndRadius="0.03" Length="1.0"/>
-        </MeshBuilder>
+      <RenderTexturedQuad Shader="TreeShader"/>
     </Model>
 
   </Content>
@@ -102,6 +144,7 @@ if(RotSpeed>0.0){
 Cam.Position.y = Growth*2.0 + 1.0;
 Cam.LookAt.y   = Growth*1.0;
 
-]]></Expression></ZExpression>
-  </OnRender>
+  ]]></Expression></ZExpression>
+    <RenderModel Model="Tree"/>
+    </OnRender>
 </ZApplication>
