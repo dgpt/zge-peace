@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ZApplication Caption="peace-tree">
+  <Content>
+    <!-- ZGE Viz built-ins -->
+    <DefineArray Name="SpecBandArray" SizeDim1="32"/>
+    <DefineArray Name="AudioArray" SizeDim1="1024"/>
+    <DefineVariable Name="SongPositionInBeats"/>
+
+    <!-- Slider ranges -->
+    <DefineVariable Name="BASE_ROT_MIN" Value="0.0"/>
+    <DefineVariable Name="BASE_ROT_DEF" Value="0.0"/>
+    <DefineVariable Name="BASE_ROT_MAX" Value="0.5"/>
+
+    <DefineVariable Name="BASE_AS_MIN" Value="0.1"/>
+    <DefineVariable Name="BASE_AS_DEF" Value="1.0"/>
+    <DefineVariable Name="BASE_AS_MAX" Value="5.0"/>
+
+    <DefineVariable Name="BASE_HUE_MIN" Value="-180.0"/>
+    <DefineVariable Name="BASE_HUE_DEF" Value="0.0"/>
+    <DefineVariable Name="BASE_HUE_MAX" Value="180.0"/>
+
+    <DefineVariable Name="BASE_SENS_MIN" Value="0.2"/>
+    <DefineVariable Name="BASE_SENS_DEF" Value="1.0"/>
+    <DefineVariable Name="BASE_SENS_MAX" Value="2.0"/>
+
+    <DefineVariable Name="BASE_SM_MIN" Value="0.0"/>
+    <DefineVariable Name="BASE_SM_DEF" Value="0.7"/>
+    <DefineVariable Name="BASE_SM_MAX" Value="1.0"/>
+
+    <!-- Slider parameters -->
+    <DefineArray Name="Parameters" SizeDim1="5"/>
+    <DefineConstant Name="ParamHelpConst" Type="2"
+      StringValue="Rotation Speed&#10;Animation Speed&#10;Hue Offset&#10;Sensitivity&#10;Smoothness"/>
+
+    <!-- Runtime state -->
+    <DefineVariable Name="RotSpeed" Value="0.0"/>
+    <DefineVariable Name="AnimSpeed" Value="1.0"/>
+    <DefineVariable Name="HueOffset" Value="0.0"/>
+    <DefineVariable Name="Sensitivity" Value="1.0"/>
+    <DefineVariable Name="Smooth" Value="0.7"/>
+    <DefineVariable Name="Growth" Value="0.0"/>
+    <DefineVariable Name="AudioDrive" Value="0.0"/>
+    <DefineVariable Name="uTimeVar" Value="0.0"/>
+
+    <!-- Camera and tree placeholders -->
+    <Camera Name="Cam" Position="0 1 5" LookAt="0 1 0"/>
+    <Actor Name="Tree">
+      <Components>
+        <MeshBuilder Name="Trunk">
+          <AddCylinder StartRadius="0.05" EndRadius="0.03" Length="1.0"/>
+        </MeshBuilder>
+      </Components>
+    </Actor>
+
+  </Content>
+
+  <OnLoaded>
+    <ZExpression><Expression><![CDATA[
+Parameters[0]=0.5;
+Parameters[1]=0.5;
+Parameters[2]=0.5;
+Parameters[3]=0.5;
+Parameters[4]=0.5;
+]]></Expression></ZExpression>
+  </OnLoaded>
+
+  <OnRender>
+    <ZExpression><Expression><![CDATA[
+:uTimeVar = uTimeVar + 0.016;
+
+float p;
+
+p = Parameters[0];
+if(p<0.5) RotSpeed = BASE_ROT_MIN + (BASE_ROT_DEF-BASE_ROT_MIN)*(p*2.0);
+else      RotSpeed = BASE_ROT_DEF + (BASE_ROT_MAX-BASE_ROT_DEF)*(p*2.0-1.0);
+
+p = Parameters[1];
+if(p<0.5) AnimSpeed = BASE_AS_MIN + (BASE_AS_DEF-BASE_AS_MIN)*(p*2.0);
+else      AnimSpeed = BASE_AS_DEF + (BASE_AS_MAX-BASE_AS_DEF)*(p*2.0-1.0);
+
+p = Parameters[2];
+if(p<0.5) HueOffset = BASE_HUE_MIN + (BASE_HUE_DEF-BASE_HUE_MIN)*(p*2.0);
+else      HueOffset = BASE_HUE_DEF + (BASE_HUE_MAX-BASE_HUE_DEF)*(p*2.0-1.0);
+
+p = Parameters[3];
+if(p<0.5) Sensitivity = BASE_SENS_MIN + (BASE_SENS_DEF-BASE_SENS_MIN)*(p*2.0);
+else      Sensitivity = BASE_SENS_DEF + (BASE_SENS_MAX-BASE_SENS_DEF)*(p*2.0-1.0);
+
+p = Parameters[4];
+if(p<0.5) Smooth = BASE_SM_MIN + (BASE_SM_DEF-BASE_SM_MIN)*(p*2.0);
+else      Smooth = BASE_SM_DEF + (BASE_SM_MAX-BASE_SM_DEF)*(p*2.0-1.0);
+
+float a = AudioArray[0]*Sensitivity;
+AudioDrive = AudioDrive*(1.0-Smooth) + a*Smooth;
+Growth = Growth + (AnimSpeed + AudioDrive) * 0.016;
+if(Growth>1.0) Growth=1.0;
+
+if(RotSpeed>0.0){
+  float ang = uTimeVar*RotSpeed;
+  Cam.Position.x = sin(ang)*5.0;
+  Cam.Position.z = cos(ang)*5.0;
+}
+
+Cam.Position.y = Growth*2.0 + 1.0;
+Cam.LookAt.y   = Growth*1.0;
+
+]]></Expression></ZExpression>
+  </OnRender>
+</ZApplication>
