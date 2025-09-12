@@ -1,6 +1,6 @@
 # zge-peace
 
-ZGameEditor visualization for "Peace" by dxdy. The scene grows a cherry tree from seed in sync with audio. Rendering is handled entirely by a GLSL shader drawn on a full-screen sprite, following the `zge-oxygen` structure.
+ZGameEditor visualization for "Peace" by dxdy. The scene grows a cherry tree from seed to full bloom in sync with audio. Rendering is handled entirely by a single GLSL shader drawn on a full-screen sprite, following the `zge-oxygen` structure.
 
 ## Controls
 1. **Rotation Speed** – orbit rate of the camera around the tree.

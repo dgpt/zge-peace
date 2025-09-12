@@ -103,31 +103,45 @@ vec3 hsl2rgb(float h, float s, float l){
   return rgb + vec3(m);
 }
 
+float treeMap(vec3 p, float g, float h, float c){
+  float trunk = sdCappedCylinder(p-vec3(0.0,h*0.5,0.0), h*0.5, 0.1);
+  float canopy = sdSphere(p-vec3(0.0,h,0.0), c);
+  float seed = sdSphere(p, 0.15*(1.0-g*5.0));
+  return min(min(trunk, canopy), seed);
+}
+
 void main(){
   vec2 uv = vUv*2.0-1.0;
-  vec3 ro = vec3(sin(uRot)*3.0*uZoom, 1.0*uZoom, -cos(uRot)*3.0*uZoom);
-  vec3 rd = normalize(vec3(uv,1.5));
-  vec2 dir = mat2(cos(uRot), -sin(uRot), sin(uRot), cos(uRot)) * rd.xz;
-  rd.xz = dir;
+  float g = clamp(uGrowth,0.0,1.0);
+  float trunkH = mix(0.2,2.5,g);
+  float canopyR = smoothstep(0.3,1.0,g)*1.2;
+  float camDist = mix(2.5,5.0,g)*uZoom;
+  vec3 ro = vec3(sin(uRot)*camDist, trunkH*0.6, cos(uRot)*camDist);
+  vec3 target = vec3(0.0,trunkH*0.5,0.0);
+  vec3 ww = normalize(target-ro);
+  vec3 uu = normalize(cross(vec3(0,1,0),ww));
+  vec3 vv = cross(ww,uu);
+  vec3 rd = normalize(uv.x*uu + uv.y*vv + 1.5*ww);
   float t=0.0;
   float d=0.0;
-  vec3 col = vec3(0.0);
-  for(int i=0;i<64;i++){
+  for(int i=0;i<96;i++){
     vec3 p = ro + rd*t;
-    float h = mix(0.2,2.0,uGrowth);
-    float r = mix(0.1,0.3,uGrowth);
-    float trunk = sdCappedCylinder(p-vec3(0,h*0.5,0), h, r);
-    float seed = sdSphere(p, 0.2*(1.0-uGrowth));
-    d = min(trunk, seed);
-    if(d<0.001 || t>10.0) break;
+    d = treeMap(p,g,trunkH,canopyR);
+    if(abs(d)<0.001 || t>20.0) break;
     t += d;
   }
-  if(t<10.0){
-    col = hsl2rgb(uHue, uSat, uLight);
-    gl_FragColor = vec4(col, uAlpha);
-  }else{
-    gl_FragColor = vec4(0.0,0.0,0.0,1.0);
+  vec3 col = vec3(0.0);
+  if(t<20.0){
+    vec3 p = ro + rd*t;
+    float canopyMask = step(trunkH*0.8,p.y);
+    vec3 base;
+    if(canopyMask>0.5)
+      base = hsl2rgb(uHue+340.0,uSat*0.5,uLight*0.8);
+    else
+      base = hsl2rgb(uHue+30.0,uSat*0.6,uLight*0.3);
+    col = base;
   }
+  gl_FragColor = vec4(col, uAlpha);
 }]]></FragmentShaderSource>
         <ShaderVariable Name="uTime" Variable="uTimeVar"/>
         <ShaderVariable Name="uHue" Variable="HueOffset"/>
@@ -138,7 +152,6 @@ void main(){
         <ShaderVariable Name="uRot" Variable="uRotAccum"/>
         <ShaderVariable Name="uZoom" Variable="Zoom"/>
       </Shader>
-      <Material Name="TreeMat" Shader="TreeShader"/>
       <DefineVariable Name="uRotAccum" Value="0.0"/>
     </Content>
 
@@ -204,9 +217,10 @@ void main(){
 
   uRotAccum = uRotAccum + RotSpeed * 0.016;
       ]]></ZExpression>
-      <UseMaterial Material="TreeMat"/>
       <RenderTransformGroup Scale="20 20 1">
-        <Children><RenderSprite/></Children>
+        <Children>
+          <RenderSprite Shader="TreeShader"/>
+        </Children>
       </RenderTransformGroup>
     </OnRender>
   </ZApplication>
