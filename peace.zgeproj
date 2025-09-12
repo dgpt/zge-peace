@@ -42,8 +42,7 @@
     <DefineVariable Name="AudioDrive" Value="0.0"/>
     <DefineVariable Name="uTimeVar" Value="0.0"/>
 
-    <!-- Camera and shader-based tree -->
-    <Camera Name="Cam" Position="0 1 5" LookAt="0 1 0"/>
+    <!-- Shader-based tree -->
     <Shader Name="TreeShader">
       <VertexShaderSource><![CDATA[
 #version 120
@@ -85,10 +84,14 @@ vec3 shade(vec3 ro,vec3 rd){
 }
 void main(){
   vec2 uv = vUv*2.0-1.0;
-  vec3 ro = vec3(sin(uTime*RotSpeed)*5.0,1.0,cos(uTime*RotSpeed)*5.0);
-  vec3 rd = normalize(vec3(uv,-1.5));
-  vec3 col = shade(ro,rd);
-  gl_FragColor = vec4(col,1.0);
+  vec3 target = vec3(0.0, Growth, 0.0);
+  vec3 ro = vec3(sin(uTime*RotSpeed)*5.0, Growth*2.0 + 1.0, cos(uTime*RotSpeed)*5.0);
+  vec3 forward = normalize(target - ro);
+  vec3 right = normalize(cross(vec3(0.0,1.0,0.0), forward));
+  vec3 up = cross(forward, right);
+  vec3 rd = normalize(forward + uv.x * right + uv.y * up);
+  vec3 col = shade(ro, rd);
+  gl_FragColor = vec4(col, 1.0);
 }
       ]]></FragmentShaderSource>
       <ShaderVariable VariableName="uTime"     VariableRef="uTimeVar"/>
@@ -96,9 +99,7 @@ void main(){
       <ShaderVariable VariableName="HueOffset" VariableRef="HueOffset"/>
       <ShaderVariable VariableName="RotSpeed"  VariableRef="RotSpeed"/>
     </Shader>
-    <Model Name="Tree">
-      <RenderTexturedQuad Shader="TreeShader"/>
-    </Model>
+    <Material Name="TreeMat" Shader="TreeShader"/>
 
   </Content>
 
@@ -143,16 +144,10 @@ AudioDrive = AudioDrive*(1.0-Smooth) + a*Smooth;
 Growth = Growth + (AnimSpeed + AudioDrive) * 0.016;
 if(Growth>1.0) Growth=1.0;
 
-if(RotSpeed>0.0){
-  float ang = uTimeVar*RotSpeed;
-  Cam.Position.x = sin(ang)*5.0;
-  Cam.Position.z = cos(ang)*5.0;
-}
-
-Cam.Position.y = Growth*2.0 + 1.0;
-Cam.LookAt.y   = Growth*1.0;
-
   ]]></Expression></ZExpression>
-    <RenderModel Model="Tree"/>
-    </OnRender>
+    <UseMaterial Material="TreeMat"/>
+    <RenderTransformGroup Scale="20 20 1">
+      <Children><RenderSprite/></Children>
+    </RenderTransformGroup>
+  </OnRender>
 </ZApplication>
