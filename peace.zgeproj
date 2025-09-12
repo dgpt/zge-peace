@@ -152,6 +152,7 @@ void main(){
         <ShaderVariable Name="uRot" Variable="uRotAccum"/>
         <ShaderVariable Name="uZoom" Variable="Zoom"/>
       </Shader>
+      <Material Name="Mat" Shader="TreeShader" />
       <DefineVariable Name="uRotAccum" Value="0.0"/>
     </Content>
 
@@ -217,9 +218,11 @@ void main(){
 
   uRotAccum = uRotAccum + RotSpeed * 0.016;
       ]]></ZExpression>
+      <UseMaterial Material="Mat"/>
       <RenderTransformGroup Scale="20 20 1">
+	
         <Children>
-          <RenderSprite Shader="TreeShader"/>
+          <RenderSprite/>
         </Children>
       </RenderTransformGroup>
     </OnRender>
