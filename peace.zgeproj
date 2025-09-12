@@ -62,112 +62,149 @@
     <DefineVariable Name="AudioDrive" Value="0.0"/>
     <DefineVariable Name="uTimeVar" Value="0.0"/>
 
-    <!-- Tree model rendered entirely through a shader on a quad -->
-    <Model Name="TreeModel">
-      <Definitions>
-        <Mesh Name="QuadMesh">
-          <MeshPlane Width="2" Height="2"/>
-        </Mesh>
-        <Shader Name="TreeShader">
-          <VertexShaderSource><![CDATA[
-attribute vec3 Position;
+      <!-- Fullscreen shader for tree rendering -->
+      <Shader Name="TreeShader">
+        <VertexShaderSource><![CDATA[
+#version 120
+varying vec2 vUv;
 void main(){
-  gl_Position = vec4(Position,1.0);
+  vUv = gl_MultiTexCoord0.xy;
+  gl_Position = ftransform();
 }]]></VertexShaderSource>
-          <FragmentShaderSource><![CDATA[
+        <FragmentShaderSource><![CDATA[
+#version 120
+varying vec2 vUv;
 uniform float uTime;
 uniform float uHue;
 uniform float uSat;
 uniform float uLight;
 uniform float uAlpha;
 uniform float uGrowth;
+uniform float uRot;
+uniform float uZoom;
+
+float sdSphere(vec3 p, float r){return length(p)-r;}
+float sdCappedCylinder(vec3 p, float h, float r){
+  vec2 d = abs(vec2(length(p.xz), p.y)) - vec2(r, h);
+  return min(max(d.x, d.y),0.0) + length(max(d,0.0));
+}
+
+vec3 hsl2rgb(float h, float s, float l){
+  float C = (1.0 - abs(2.0*l - 1.0)) * s;
+  float X = C * (1.0 - abs(mod(h/60.0, 2.0) - 1.0));
+  float m = l - C/2.0;
+  vec3 rgb;
+  if(h < 60.0)      rgb = vec3(C,X,0);
+  else if(h < 120.0) rgb = vec3(X,C,0);
+  else if(h < 180.0) rgb = vec3(0,C,X);
+  else if(h < 240.0) rgb = vec3(0,X,C);
+  else if(h < 300.0) rgb = vec3(X,0,C);
+  else               rgb = vec3(C,0,X);
+  return rgb + vec3(m);
+}
+
 void main(){
-  gl_FragColor = vec4(uHue/360.0,uSat,uLight,uAlpha);
+  vec2 uv = vUv*2.0-1.0;
+  vec3 ro = vec3(sin(uRot)*3.0*uZoom, 1.0*uZoom, cos(uRot)*3.0*uZoom);
+  vec3 rd = normalize(vec3(uv,1.5));
+  float t=0.0;
+  float d=0.0;
+  vec3 col = vec3(0.0);
+  for(int i=0;i<64;i++){
+    vec3 p = ro + rd*t;
+    float h = mix(0.2,2.0,uGrowth);
+    float r = mix(0.1,0.3,uGrowth);
+    float trunk = sdCappedCylinder(p-vec3(0,h*0.5,0), h, r);
+    float seed = sdSphere(p, 0.2*(1.0-uGrowth));
+    d = min(trunk, seed);
+    if(d<0.001 || t>10.0) break;
+    t += d;
+  }
+  if(t<10.0){
+    col = hsl2rgb(uHue, uSat, uLight);
+    gl_FragColor = vec4(col, uAlpha);
+  }else{
+    gl_FragColor = vec4(0.0,0.0,0.0,1.0);
+  }
 }]]></FragmentShaderSource>
-          <ShaderVariable Name="uTime" Variable="uTimeVar"/>
-          <ShaderVariable Name="uHue" Variable="HueOffset"/>
-          <ShaderVariable Name="uSat" Variable="Saturation"/>
-          <ShaderVariable Name="uLight" Variable="Lightness"/>
-          <ShaderVariable Name="uAlpha" Variable="Alpha"/>
-          <ShaderVariable Name="uGrowth" Variable="Growth"/>
-        </Shader>
-        <Material Name="TreeMat" Shader="TreeShader"/>
-      </Definitions>
-      <OnRender>
-        <UseMaterial Material="TreeMat"/>
-        <RenderMesh Mesh="QuadMesh"/>
-      </OnRender>
-    </Model>
+        <ShaderVariable Name="uTime" Variable="uTimeVar"/>
+        <ShaderVariable Name="uHue" Variable="HueOffset"/>
+        <ShaderVariable Name="uSat" Variable="Saturation"/>
+        <ShaderVariable Name="uLight" Variable="Lightness"/>
+        <ShaderVariable Name="uAlpha" Variable="Alpha"/>
+        <ShaderVariable Name="uGrowth" Variable="Growth"/>
+        <ShaderVariable Name="uRot" Variable="uRotAccum"/>
+        <ShaderVariable Name="uZoom" Variable="Zoom"/>
+      </Shader>
+      <Material Name="TreeMat" Shader="TreeShader"/>
+      <DefineVariable Name="uRotAccum" Value="0.0"/>
+    </Content>
 
-    <!-- Main camera -->
-    <Camera Name="MainCamera" Position="0 1 5"/>
-  </Content>
+    <OnLoaded>
+      <ZExpression><![CDATA[
+    Parameters[0]=0.5;
+    Parameters[1]=0.5;
+    Parameters[2]=0.5;
+    Parameters[3]=0.5;
+    Parameters[4]=0.5;
+    Parameters[5]=1.0;
+    Parameters[6]=0.5;
+    Parameters[7]=0.5;
+    Parameters[8]=0.5;
+      ]]></ZExpression>
+    </OnLoaded>
 
-  <OnLoaded>
-    <ZExpression><![CDATA[
-  Parameters[0]=0.5;
-  Parameters[1]=0.5;
-  Parameters[2]=0.5;
-  Parameters[3]=0.5;
-  Parameters[4]=0.5;
-  Parameters[5]=1.0;
-  Parameters[6]=0.5;
-  Parameters[7]=0.5;
-  Parameters[8]=0.5;
-    ]]></ZExpression>
-    <SpawnModel Model="TreeModel"/>
-  </OnLoaded>
+    <OnRender>
+      <ZExpression><![CDATA[
+    uTimeVar = uTimeVar + 0.016;
 
-  <OnRender>
-    <ZExpression><![CDATA[
-  uTimeVar = uTimeVar + 0.016;
+  float p;
 
-float p;
+    p = Parameters[0];
+    if(p<0.5) RotSpeed = BASE_ROT_MIN + (BASE_ROT_DEF-BASE_ROT_MIN)*(p*2.0);
+    else      RotSpeed = BASE_ROT_DEF + (BASE_ROT_MAX-BASE_ROT_DEF)*(p*2.0-1.0);
 
-  p = Parameters[0];
-  if(p<0.5) RotSpeed = BASE_ROT_MIN + (BASE_ROT_DEF-BASE_ROT_MIN)*(p*2.0);
-  else      RotSpeed = BASE_ROT_DEF + (BASE_ROT_MAX-BASE_ROT_DEF)*(p*2.0-1.0);
+    p = Parameters[1];
+    if(p<0.5) AnimSpeed = BASE_AS_MIN + (BASE_AS_DEF-BASE_AS_MIN)*(p*2.0);
+    else      AnimSpeed = BASE_AS_DEF + (BASE_AS_MAX-BASE_AS_DEF)*(p*2.0-1.0);
 
-  p = Parameters[1];
-  if(p<0.5) AnimSpeed = BASE_AS_MIN + (BASE_AS_DEF-BASE_AS_MIN)*(p*2.0);
-  else      AnimSpeed = BASE_AS_DEF + (BASE_AS_MAX-BASE_AS_DEF)*(p*2.0-1.0);
+    p = Parameters[2];
+    if(p<0.5) HueOffset = BASE_HUE_MIN + (BASE_HUE_DEF-BASE_HUE_MIN)*(p*2.0);
+    else      HueOffset = BASE_HUE_DEF + (BASE_HUE_MAX-BASE_HUE_DEF)*(p*2.0-1.0);
 
-  p = Parameters[2];
-  if(p<0.5) HueOffset = BASE_HUE_MIN + (BASE_HUE_DEF-BASE_HUE_MIN)*(p*2.0);
-  else      HueOffset = BASE_HUE_DEF + (BASE_HUE_MAX-BASE_HUE_DEF)*(p*2.0-1.0);
+    p = Parameters[3];
+    if(p<0.5) Saturation = BASE_SAT_MIN + (BASE_SAT_DEF-BASE_SAT_MIN)*(p*2.0);
+    else      Saturation = BASE_SAT_DEF + (BASE_SAT_MAX-BASE_SAT_DEF)*(p*2.0-1.0);
 
-  p = Parameters[3];
-  if(p<0.5) Saturation = BASE_SAT_MIN + (BASE_SAT_DEF-BASE_SAT_MIN)*(p*2.0);
-  else      Saturation = BASE_SAT_DEF + (BASE_SAT_MAX-BASE_SAT_DEF)*(p*2.0-1.0);
+    p = Parameters[4];
+    if(p<0.5) Lightness = BASE_LIT_MIN + (BASE_LIT_DEF-BASE_LIT_MIN)*(p*2.0);
+    else      Lightness = BASE_LIT_DEF + (BASE_LIT_MAX-BASE_LIT_DEF)*(p*2.0-1.0);
 
-  p = Parameters[4];
-  if(p<0.5) Lightness = BASE_LIT_MIN + (BASE_LIT_DEF-BASE_LIT_MIN)*(p*2.0);
-  else      Lightness = BASE_LIT_DEF + (BASE_LIT_MAX-BASE_LIT_DEF)*(p*2.0-1.0);
+    p = Parameters[5];
+    Alpha = BASE_ALPHA_MIN + (BASE_ALPHA_MAX-BASE_ALPHA_MIN)*p;
 
-  p = Parameters[5];
-  Alpha = BASE_ALPHA_MIN + (BASE_ALPHA_MAX-BASE_ALPHA_MIN)*p;
+    p = Parameters[6];
+    if(p<0.5) Sensitivity = BASE_SENS_MIN + (BASE_SENS_DEF-BASE_SENS_MIN)*(p*2.0);
+    else      Sensitivity = BASE_SENS_DEF + (BASE_SENS_MAX-BASE_SENS_DEF)*(p*2.0-1.0);
 
-  p = Parameters[6];
-  if(p<0.5) Sensitivity = BASE_SENS_MIN + (BASE_SENS_DEF-BASE_SENS_MIN)*(p*2.0);
-  else      Sensitivity = BASE_SENS_DEF + (BASE_SENS_MAX-BASE_SENS_DEF)*(p*2.0-1.0);
+    p = Parameters[7];
+    if(p<0.5) Smooth = BASE_SM_MIN + (BASE_SM_DEF-BASE_SM_MIN)*(p*2.0);
+    else      Smooth = BASE_SM_DEF + (BASE_SM_MAX-BASE_SM_DEF)*(p*2.0-1.0);
 
-  p = Parameters[7];
-  if(p<0.5) Smooth = BASE_SM_MIN + (BASE_SM_DEF-BASE_SM_MIN)*(p*2.0);
-  else      Smooth = BASE_SM_DEF + (BASE_SM_MAX-BASE_SM_DEF)*(p*2.0-1.0);
+    p = Parameters[8];
+    if(p<0.5) Zoom = BASE_ZOOM_MIN + (BASE_ZOOM_DEF-BASE_ZOOM_MIN)*(p*2.0);
+    else      Zoom = BASE_ZOOM_DEF + (BASE_ZOOM_MAX-BASE_ZOOM_DEF)*(p*2.0-1.0);
 
-  p = Parameters[8];
-  if(p<0.5) Zoom = BASE_ZOOM_MIN + (BASE_ZOOM_DEF-BASE_ZOOM_MIN)*(p*2.0);
-  else      Zoom = BASE_ZOOM_DEF + (BASE_ZOOM_MAX-BASE_ZOOM_DEF)*(p*2.0-1.0);
+  float a = AudioArray[0]*Sensitivity;
+  AudioDrive = AudioDrive*(1.0-Smooth) + a*Smooth;
+  Growth = Growth + (AnimSpeed + AudioDrive) * 0.016;
+  if(Growth>1.0) Growth=1.0;
 
-float a = AudioArray[0]*Sensitivity;
-AudioDrive = AudioDrive*(1.0-Smooth) + a*Smooth;
-Growth = Growth + (AnimSpeed + AudioDrive) * 0.016;
-if(Growth>1.0) Growth=1.0;
-
-MainCamera.Position.X = sin(uTimeVar*RotSpeed) * Zoom * 5.0;
-MainCamera.Position.Z = cos(uTimeVar*RotSpeed) * Zoom * 5.0;
-MainCamera.Position.Y = Growth*2.0 + 2.0;
-    ]]></ZExpression>
-    <RenderWorld Camera="MainCamera"/>
-  </OnRender>
-</ZApplication>
+  uRotAccum = uRotAccum + RotSpeed * 0.016;
+      ]]></ZExpression>
+      <UseMaterial Material="TreeMat"/>
+      <RenderTransformGroup Scale="20 20 1">
+        <Children><RenderSprite/></Children>
+      </RenderTransformGroup>
+    </OnRender>
+  </ZApplication>
