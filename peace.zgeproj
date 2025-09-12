@@ -27,6 +27,10 @@
     <DefineVariable Name="BASE_LIT_DEF" Value="0.5"/>
     <DefineVariable Name="BASE_LIT_MAX" Value="1.0"/>
 
+    <DefineVariable Name="BASE_ALPHA_MIN" Value="0.0"/>
+    <DefineVariable Name="BASE_ALPHA_DEF" Value="1.0"/>
+    <DefineVariable Name="BASE_ALPHA_MAX" Value="1.0"/>
+
     <DefineVariable Name="BASE_SENS_MIN" Value="0.2"/>
     <DefineVariable Name="BASE_SENS_DEF" Value="1.0"/>
     <DefineVariable Name="BASE_SENS_MAX" Value="2.0"/>
@@ -40,9 +44,9 @@
     <DefineVariable Name="BASE_ZOOM_MAX" Value="3.0"/>
 
     <!-- Slider parameters -->
-    <DefineArray Name="Parameters" SizeDim1="8"/>
+    <DefineArray Name="Parameters" SizeDim1="9"/>
     <DefineConstant Name="ParamHelpConst" Type="2"
-      StringValue="Rotation Speed&#10;Animation Speed&#10;Hue Offset&#10;Saturation&#10;Lightness&#10;Sensitivity&#10;Smoothness&#10;Zoom"/>
+      StringValue="Rotation Speed&#10;Animation Speed&#10;Hue Offset&#10;Saturation&#10;Lightness&#10;Alpha&#10;Sensitivity&#10;Smoothness&#10;Zoom"/>
 
     <!-- Runtime state -->
     <DefineVariable Name="RotSpeed" Value="0.0"/>
@@ -50,6 +54,7 @@
     <DefineVariable Name="HueOffset" Value="0.0"/>
     <DefineVariable Name="Saturation" Value="1.0"/>
     <DefineVariable Name="Lightness" Value="0.5"/>
+    <DefineVariable Name="Alpha" Value="1.0"/>
     <DefineVariable Name="Sensitivity" Value="1.0"/>
     <DefineVariable Name="Smooth" Value="0.7"/>
     <DefineVariable Name="Zoom" Value="1.0"/>
@@ -75,6 +80,7 @@ uniform float Growth;
 uniform float HueOffset;
 uniform float Saturation;
 uniform float Lightness;
+uniform float Alpha;
 uniform float RotSpeed;
 uniform float Zoom;
 
@@ -122,17 +128,18 @@ void main(){
   vec3 right = normalize(cross(vec3(0.0,1.0,0.0), forward));
   vec3 up = cross(forward, right);
   vec3 rd = normalize(forward + uv.x * right + uv.y * up);
-  vec3 col = shade(ro, rd);
-  gl_FragColor = vec4(col, 1.0);
+    vec3 col = shade(ro, rd);
+    gl_FragColor = vec4(col, Alpha);
 }
       ]]></FragmentShaderSource>
       <ShaderVariable VariableName="uTime"     VariableRef="uTimeVar"/>
       <ShaderVariable VariableName="Growth"    VariableRef="Growth"/>
       <ShaderVariable VariableName="HueOffset" VariableRef="HueOffset"/>
       <ShaderVariable VariableName="Saturation" VariableRef="Saturation"/>
-      <ShaderVariable VariableName="Lightness" VariableRef="Lightness"/>
-      <ShaderVariable VariableName="RotSpeed"  VariableRef="RotSpeed"/>
-      <ShaderVariable VariableName="Zoom"      VariableRef="Zoom"/>
+        <ShaderVariable VariableName="Lightness" VariableRef="Lightness"/>
+        <ShaderVariable VariableName="Alpha"     VariableRef="Alpha"/>
+        <ShaderVariable VariableName="RotSpeed"  VariableRef="RotSpeed"/>
+        <ShaderVariable VariableName="Zoom"      VariableRef="Zoom"/>
     </Shader>
     <Material Name="TreeMat" Shader="TreeShader"/>
 
@@ -140,54 +147,58 @@ void main(){
 
   <OnLoaded>
     <ZExpression><Expression><![CDATA[
-Parameters[0]=0.5;
-Parameters[1]=0.5;
-Parameters[2]=0.5;
-Parameters[3]=0.5;
-Parameters[4]=0.5;
-Parameters[5]=0.5;
-Parameters[6]=0.5;
-Parameters[7]=0.5;
+  Parameters[0]=0.5;
+  Parameters[1]=0.5;
+  Parameters[2]=0.5;
+  Parameters[3]=0.5;
+  Parameters[4]=0.5;
+  Parameters[5]=1.0;
+  Parameters[6]=0.5;
+  Parameters[7]=0.5;
+  Parameters[8]=0.5;
 ]]></Expression></ZExpression>
   </OnLoaded>
 
   <OnRender>
     <ZExpression><Expression><![CDATA[
-:uTimeVar = uTimeVar + 0.016;
+  uTimeVar = uTimeVar + 0.016;
 
 float p;
 
-p = Parameters[0];
-if(p<0.5) RotSpeed = BASE_ROT_MIN + (BASE_ROT_DEF-BASE_ROT_MIN)*(p*2.0);
-else      RotSpeed = BASE_ROT_DEF + (BASE_ROT_MAX-BASE_ROT_DEF)*(p*2.0-1.0);
+  p = Parameters[0];
+  if(p<0.5) RotSpeed = BASE_ROT_MIN + (BASE_ROT_DEF-BASE_ROT_MIN)*(p*2.0);
+  else      RotSpeed = BASE_ROT_DEF + (BASE_ROT_MAX-BASE_ROT_DEF)*(p*2.0-1.0);
 
-p = Parameters[1];
-if(p<0.5) AnimSpeed = BASE_AS_MIN + (BASE_AS_DEF-BASE_AS_MIN)*(p*2.0);
-else      AnimSpeed = BASE_AS_DEF + (BASE_AS_MAX-BASE_AS_DEF)*(p*2.0-1.0);
+  p = Parameters[1];
+  if(p<0.5) AnimSpeed = BASE_AS_MIN + (BASE_AS_DEF-BASE_AS_MIN)*(p*2.0);
+  else      AnimSpeed = BASE_AS_DEF + (BASE_AS_MAX-BASE_AS_DEF)*(p*2.0-1.0);
 
-p = Parameters[2];
-if(p<0.5) HueOffset = BASE_HUE_MIN + (BASE_HUE_DEF-BASE_HUE_MIN)*(p*2.0);
-else      HueOffset = BASE_HUE_DEF + (BASE_HUE_MAX-BASE_HUE_DEF)*(p*2.0-1.0);
+  p = Parameters[2];
+  if(p<0.5) HueOffset = BASE_HUE_MIN + (BASE_HUE_DEF-BASE_HUE_MIN)*(p*2.0);
+  else      HueOffset = BASE_HUE_DEF + (BASE_HUE_MAX-BASE_HUE_DEF)*(p*2.0-1.0);
 
-p = Parameters[3];
-if(p<0.5) Saturation = BASE_SAT_MIN + (BASE_SAT_DEF-BASE_SAT_MIN)*(p*2.0);
-else      Saturation = BASE_SAT_DEF + (BASE_SAT_MAX-BASE_SAT_DEF)*(p*2.0-1.0);
+  p = Parameters[3];
+  if(p<0.5) Saturation = BASE_SAT_MIN + (BASE_SAT_DEF-BASE_SAT_MIN)*(p*2.0);
+  else      Saturation = BASE_SAT_DEF + (BASE_SAT_MAX-BASE_SAT_DEF)*(p*2.0-1.0);
 
-p = Parameters[4];
-if(p<0.5) Lightness = BASE_LIT_MIN + (BASE_LIT_DEF-BASE_LIT_MIN)*(p*2.0);
-else      Lightness = BASE_LIT_DEF + (BASE_LIT_MAX-BASE_LIT_DEF)*(p*2.0-1.0);
+  p = Parameters[4];
+  if(p<0.5) Lightness = BASE_LIT_MIN + (BASE_LIT_DEF-BASE_LIT_MIN)*(p*2.0);
+  else      Lightness = BASE_LIT_DEF + (BASE_LIT_MAX-BASE_LIT_DEF)*(p*2.0-1.0);
 
-p = Parameters[5];
-if(p<0.5) Sensitivity = BASE_SENS_MIN + (BASE_SENS_DEF-BASE_SENS_MIN)*(p*2.0);
-else      Sensitivity = BASE_SENS_DEF + (BASE_SENS_MAX-BASE_SENS_DEF)*(p*2.0-1.0);
+  p = Parameters[5];
+  Alpha = BASE_ALPHA_MIN + (BASE_ALPHA_MAX-BASE_ALPHA_MIN)*p;
 
-p = Parameters[6];
-if(p<0.5) Smooth = BASE_SM_MIN + (BASE_SM_DEF-BASE_SM_MIN)*(p*2.0);
-else      Smooth = BASE_SM_DEF + (BASE_SM_MAX-BASE_SM_DEF)*(p*2.0-1.0);
+  p = Parameters[6];
+  if(p<0.5) Sensitivity = BASE_SENS_MIN + (BASE_SENS_DEF-BASE_SENS_MIN)*(p*2.0);
+  else      Sensitivity = BASE_SENS_DEF + (BASE_SENS_MAX-BASE_SENS_DEF)*(p*2.0-1.0);
 
-p = Parameters[7];
-if(p<0.5) Zoom = BASE_ZOOM_MIN + (BASE_ZOOM_DEF-BASE_ZOOM_MIN)*(p*2.0);
-else      Zoom = BASE_ZOOM_DEF + (BASE_ZOOM_MAX-BASE_ZOOM_DEF)*(p*2.0-1.0);
+  p = Parameters[7];
+  if(p<0.5) Smooth = BASE_SM_MIN + (BASE_SM_DEF-BASE_SM_MIN)*(p*2.0);
+  else      Smooth = BASE_SM_DEF + (BASE_SM_MAX-BASE_SM_DEF)*(p*2.0-1.0);
+
+  p = Parameters[8];
+  if(p<0.5) Zoom = BASE_ZOOM_MIN + (BASE_ZOOM_DEF-BASE_ZOOM_MIN)*(p*2.0);
+  else      Zoom = BASE_ZOOM_DEF + (BASE_ZOOM_MAX-BASE_ZOOM_DEF)*(p*2.0-1.0);
 
 float a = AudioArray[0]*Sensitivity;
 AudioDrive = AudioDrive*(1.0-Smooth) + a*Smooth;
@@ -196,6 +207,6 @@ if(Growth>1.0) Growth=1.0;
 
   ]]></Expression></ZExpression>
     <UseMaterial Material="TreeMat"/>
-    <RenderSprite/>
-  </OnRender>
-</ZApplication>
+      <RenderSprite SizeX="2" SizeY="2"/>
+    </OnRender>
+  </ZApplication>
