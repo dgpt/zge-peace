@@ -207,6 +207,8 @@ if(Growth>1.0) Growth=1.0;
 
   ]]></Expression></ZExpression>
     <UseMaterial Material="TreeMat"/>
-      <RenderSprite SizeX="2" SizeY="2"/>
-    </OnRender>
+    <RenderTransformGroup Scale="20 20 1">
+      <Children><RenderSprite/></Children>
+    </RenderTransformGroup>
+  </OnRender>
   </ZApplication>
