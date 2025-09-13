@@ -7,8 +7,8 @@ ZGameEditor visualization for "Peace" by dxdy. The scene grows a cherry tree fro
 2. **Animation Speed** – base growth speed of the tree.
 3. **Hue Offset** – global hue shift.
 4. **Saturation** – scales scene saturation.
-5. **Lightness** – scales scene lightness.
-6. **Alpha** – overall scene transparency.
+5. **Lightness** – scales scene lightness (min 10% to stay visible).
+6. **Alpha** – overall scene transparency (min 10% so the tree never disappears).
 7. **Sensitivity** – how strongly audio accelerates growth.
 8. **Smoothness** – smoothing factor for audio response and easing.
 9. **Zoom** – camera distance to keep the tree framed.
