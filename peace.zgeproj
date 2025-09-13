@@ -79,12 +79,6 @@ uniform float uGrowth;
 uniform float uRot;
 uniform float uZoom;
 
-float sdSphere(vec3 p, float r){return length(p)-r;}
-float sdCappedCylinder(vec3 p, float h, float r){
-  vec2 d = abs(vec2(length(p.xz), p.y)) - vec2(r, h);
-  return min(max(d.x, d.y),0.0) + length(max(d,0.0));
-}
-
 vec3 hsl2rgb(float h, float s, float l){
   float C = (1.0 - abs(2.0*l - 1.0)) * s;
   float X = C * (1.0 - abs(mod(h/60.0, 2.0) - 1.0));
@@ -99,59 +93,39 @@ vec3 hsl2rgb(float h, float s, float l){
   return rgb + vec3(m);
 }
 
-float treeSDF(vec3 p, float g){
-  float trunkH = mix(0.3,3.0,g);
-  float canopyR = mix(0.2,2.0,g);
-  float roots = sdCappedCylinder(p-vec3(0.0,-0.25,0.0),0.25,0.15);
-  float trunk = sdCappedCylinder(p-vec3(0.0,trunkH*0.5,0.0),trunkH*0.5,0.15);
-  float canopy = sdSphere(p-vec3(0.0,trunkH,0.0),canopyR);
-  float seed = sdSphere(p,0.25*(1.0-g*4.0));
-  return min(min(min(trunk,canopy),seed),roots);
+float sdBox(vec2 p, vec2 b){
+  vec2 d = abs(p) - b;
+  return max(d.x,d.y);
 }
 
-vec3 shade(vec3 p, float g){
-  float trunkH = mix(0.3,3.0,g);
-  float canopyMask = step(trunkH*0.8,p.y);
+void main(){
+  vec2 uv = vUv*2.0 - 1.0;
+  uv /= uZoom;
+  float c = cos(uRot), s = sin(uRot);
+  uv = mat2(c,-s,s,c) * uv;
+
+  vec3 col = mix(vec3(0.8,0.9,1.0), vec3(1.0,1.0,1.0), uv.y*0.5+0.5);
+
+  float g = clamp(uGrowth,0.0,1.0);
+  float seedT = smoothstep(0.0,0.2,g);
+  float trunkT = smoothstep(0.2,0.6,g);
+  float canopyT = smoothstep(0.6,1.0,g);
+
+  float seed = length(uv-vec2(0.0,-0.5)) - 0.08*(1.0-seedT);
+  float trunkH = 1.2*trunkT;
+  float trunk = sdBox(uv-vec2(0.0,-0.5+trunkH*0.5), vec2(0.05,trunkH*0.5));
+  float canopy = length(uv-vec2(0.0,-0.5+trunkH)) - 0.6*canopyT;
+
   float trunkHue = mod(25.0 + uHue, 360.0);
   float canopyHue = mod(340.0 + uHue, 360.0);
   vec3 trunkCol = hsl2rgb(trunkHue, min(0.7*uSat,1.0), min(0.4*uLight,1.0));
   vec3 canopyCol = hsl2rgb(canopyHue, min(0.8*uSat,1.0), min(0.8*uLight,1.0));
-  return mix(trunkCol, canopyCol, canopyMask);
-}
 
-void main(){
-  vec2 uv = clamp(vUv,0.0,1.0)*2.0-1.0;
-  float g = clamp(uGrowth,0.0,1.0);
-  float trunkH = mix(0.3,3.0,g);
-  float canopyR = mix(0.2,2.0,g);
-  float treeSize = max(trunkH+canopyR,0.5);
-  float camDist = treeSize*1.8*uZoom;
-  vec3 ro = vec3(sin(uRot)*camDist, trunkH*0.8, cos(uRot)*camDist);
-  vec3 target = vec3(0.0,trunkH*0.5,0.0);
-  vec3 ww = normalize(target-ro);
-  vec3 uu = normalize(cross(vec3(0,1,0),ww));
-  vec3 vv = cross(ww,uu);
-  vec3 rd = normalize(uv.x*uu + uv.y*vv + 1.2*ww);
-  float t=0.0;
-  float d=0.0;
-  for(int i=0;i<100;i++){
-    vec3 p = ro + rd*t;
-    d = treeSDF(p,g);
-    if(abs(d)<0.001 || t>40.0) break;
-    t += d;
-  }
-  vec3 col = mix(vec3(0.6,0.7,0.8), vec3(0.9,0.9,1.0), clamp(uv.y*0.5+0.5,0.0,1.0));
-  if(t<40.0){
-    vec3 p = ro + rd*t;
-    vec3 n = normalize(vec3(
-      treeSDF(p+vec3(0.001,0,0),g)-treeSDF(p-vec3(0.001,0,0),g),
-      treeSDF(p+vec3(0,0.001,0),g)-treeSDF(p-vec3(0,0.001,0),g),
-      treeSDF(p+vec3(0,0,0.001),g)-treeSDF(p-vec3(0,0,0.001),g)
-    ));
-    col = shade(p,g);
-  }
-  col = clamp(col,0.0,1.0);
-  gl_FragColor = vec4(col,uAlpha);
+  col = mix(col, trunkCol, smoothstep(0.01,0.0,trunk));
+  col = mix(col, canopyCol, smoothstep(0.01,0.0,canopy));
+  col = mix(col, trunkCol, (1.0-trunkT)*smoothstep(0.01,0.0,seed));
+
+  gl_FragColor = vec4(clamp(col,0.0,1.0), uAlpha);
 }]]></FragmentShaderSource>
         <ShaderVariable Name="uTime" Variable="uTimeVar"/>
         <ShaderVariable Name="uHue" Variable="HueOffset"/>
