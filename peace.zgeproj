@@ -64,8 +64,8 @@
 #version 120
 varying vec2 vUv;
 void main(){
-  vUv = gl_MultiTexCoord0.xy;
   gl_Position = ftransform();
+  vUv = gl_Position.xy / gl_Position.w * 0.5 + 0.5;
 }]]></VertexShaderSource>
         <FragmentShaderSource><![CDATA[
 #version 120
